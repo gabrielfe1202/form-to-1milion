@@ -1,0 +1,105 @@
+name: form-to-1milion
+
+services:
+  pg:
+    image: postgres:15
+    container_name: form-to-1milion-postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: form_to_1milion_db
+    ports:
+      - "5432:5432"
+    networks:
+      - form-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.60'      
+          memory: 512M
+
+  api:
+    build:
+      context: .
+      dockerfile: ./cmd/api/Dockerfile
+    container_name: form-to-1milion-api
+    depends_on:
+      - pg
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=pg
+      - DB_PORT=5432
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=form_to_1milion_db
+      - DB_SSLMODE=disable
+    networks:
+      - form-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.80'
+          memory: 1G
+
+  consumer:
+    build:
+      context: .
+      dockerfile: ./cmd/worker/Dockerfile
+    container_name: form-to-1milion-consumer
+    depends_on:
+      - pg
+      - rabbitmq
+    environment:
+      - DB_HOST=pg
+      - DB_PORT=5432
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=form_to_1milion_db
+      - DB_SSLMODE=disable
+    networks:
+      - form-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.30'
+          memory: 512M
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: form-to-1milion-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - form-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.80'
+          memory: 2G
+
+  #k6:
+  #  image: grafana/k6
+  #  container_name: k6-load-test
+  #  volumes:
+  #    - ./scenarios:/scripts
+  #    - ./scenarios/reports:/reports
+  #  working_dir: /scripts
+  #  entrypoint: ["k6", "run", "load-teste.js"]
+  #  depends_on:
+  #    - nginx
+  #  networks:
+  #    - form-net
+  #  deploy:
+  #    resources:
+  #      limits:
+  #        cpus: '1.00'       # allow up to one full CPU core for load test
+  #        memory: 1G         # limit memory to 1 gigabyte
+
+networks:
+  form-net:
+    driver: bridge
