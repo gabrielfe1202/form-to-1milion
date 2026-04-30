@@ -15,6 +15,14 @@ up:
 up-and-build:
 	$(COMPOSE) up -d --build
 
+build:
+	$(COMPOSE) build
+
+create-queue:
+	aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name form-to-1milion-queue
+
+start: up-and-build create-queue
+
 down:
 	$(COMPOSE) down
 

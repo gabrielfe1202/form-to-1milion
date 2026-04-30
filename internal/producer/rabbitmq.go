@@ -9,18 +9,6 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
-type TaskProducer interface {
-	EnqueueTask(ctx context.Context, task Task) error
-	Close() error
-}
-
-type Task struct {
-	ID      string      `json:"id"`
-	Type    string      `json:"type"`
-	Payload interface{} `json:"payload"`
-	Created time.Time   `json:"created"`
-}
-
 type RabbitMQProducer struct {
 	conn      *amqp091.Connection
 	channel   *amqp091.Channel
