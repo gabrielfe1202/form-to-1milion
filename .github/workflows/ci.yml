@@ -26,12 +26,14 @@ jobs:
           --health-retries=5
 
       localstack:
-        image: localstack/localstack:latest
+        image: localstack/localstack:3.8
         ports:
           - 4566:4566
         env:
           SERVICES: sqs
           AWS_DEFAULT_REGION: us-east-2
+          LOCALSTACK_ACKNOWLEDGE_ACCOUNT_REQUIREMENT: 1
+          SQS_ENDPOINT_STRATEGY: path
 
     env:
       DB_HOST: localhost
