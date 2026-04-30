@@ -1,8 +1,10 @@
 package user
 
 import (
+	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -17,8 +19,12 @@ type Handler struct {
 	mu       sync.RWMutex
 }
 
-func NewHandler(service *Service, producer producer.TaskProducer) *Handler {
-	return &Handler{service: service, producer: producer, emails: make(map[string]bool)}
+func NewHandler(service *Service, prod producer.TaskProducer) *Handler {
+	return &Handler{
+		service:  service,
+		producer: prod,
+		emails:   make(map[string]bool),
+	}
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +33,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Limita o tamanho do corpo para evitar DoS e alocações gigantescas.
+	// Limita o tamanho do corpo para evitar DoS
 	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20)) // 1MiB
 	decoder.DisallowUnknownFields()
 
@@ -53,18 +59,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := time.Now().UTC().UnixNano()
 	task := producer.Task{
-		//ID:      strconv.FormatInt(q, 10),
 		ID:      u.Email,
 		Type:    "create_user",
 		Payload: u,
-		Created: time.Unix(0, q).UTC(),
+		Created: time.Now().UTC(),
 	}
 
-	// Use context da requisição para cancelamento imediato em shutdown/timeouts.
-	if err := h.producer.EnqueueTask(r.Context(), task); err != nil {
-		http.Error(w, "Publish error", http.StatusInternalServerError)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := h.producer.EnqueueTask(ctx, task); err != nil {
+		http.Error(w, "Failed to process request", http.StatusInternalServerError)
+		log.Printf("❌ Erro ao enfileirar: %v", err)
 		return
 	}
 
@@ -73,6 +80,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	h.mu.Unlock()
 
 	w.WriteHeader(http.StatusAccepted)
+	log.Printf("✅ Request aceita: %s", u.Email)
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {

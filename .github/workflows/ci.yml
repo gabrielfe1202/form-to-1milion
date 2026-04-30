@@ -25,10 +25,13 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
-      rabbitmq:
-        image: rabbitmq:3-management
+      localstack:
+        image: localstack/localstack:latest
         ports:
-          - 5672:5672
+          - 4566:4566
+        env:
+          SERVICES: sqs
+          AWS_DEFAULT_REGION: us-east-2
 
     env:
       DB_HOST: localhost
@@ -37,7 +40,12 @@ jobs:
       DB_NAME: testdb
       DB_PORT: 5432
 
-      RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+      SQS_QUEUE_URL: http://localhost:4566/000000000000/form-to-1milion-queue
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-2
+      AWS_DEFAULT_REGION: us-east-2
+      AWS_ENDPOINT_URL: http://localhost:4566
 
     steps:
       - name: Checkout código
@@ -66,6 +74,9 @@ jobs:
             gofmt -l .
             exit 1
           fi
+      - name: Criar fila SQS
+        run: |
+          aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name form-to-1milion-queue
 
       - name: Go Vet
         run: go vet ./...
