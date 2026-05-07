@@ -68,21 +68,13 @@ func (p *SQSProducer) EnqueueTask(ctx context.Context, task Task) error {
 		return fmt.Errorf("erro ao serializar tarefa: %w", err)
 	}
 
-	// Aplicar timeout mais agressivo se o contexto recebido não tiver limite
-	// Máximo 2 segundos por operação SQS
-	deadline, ok := ctx.Deadline()
+	// Aplicar timeout generoso se o contexto recebido não tiver limite
+	// Máximo 45 segundos por operação SQS para permitir localstack sob carga
+	_, ok := ctx.Deadline()
 	if !ok {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 2*time.Second)
+		ctx, cancel = context.WithTimeout(ctx, 45*time.Second)
 		defer cancel()
-	} else {
-		// Garantir que o timeout não seja muito longo
-		remaining := time.Until(deadline)
-		if remaining > 2*time.Second {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, 2*time.Second)
-			defer cancel()
-		}
 	}
 
 	_, err = p.client.SendMessage(ctx, &sqs.SendMessageInput{

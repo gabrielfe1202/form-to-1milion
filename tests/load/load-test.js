@@ -17,7 +17,7 @@ export const options = {
 };
 
 export default function () {
-  const url = 'http://localhost:8080/user';
+  const url = 'http://localhost:80/user';
   const payload = JSON.stringify({
     name: `User_${Math.random().toString(36).substring(2, 10)}`,
     email: `test_${Math.random().toString(36).substring(2, 10)}@example.com`,

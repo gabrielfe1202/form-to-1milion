@@ -26,7 +26,37 @@ services:
     depends_on:
       - pg
     ports:
-      - "8080:8080"
+      - "8080"
+    environment:
+      - DB_HOST=pg
+      - DB_PORT=5432
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=form_to_1milion_db
+      - DB_SSLMODE=disable
+      - SQS_QUEUE_URL=http://localstack:4566/000000000000/form-to-1milion-queue
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_REGION=us-east-2
+      - AWS_DEFAULT_REGION=us-east-2
+      - AWS_ENDPOINT_URL=http://localstack:4566
+    networks:
+      - form-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.80'
+          memory: 1G
+
+  api2:
+    build:
+      context: .
+      dockerfile: ./cmd/api/Dockerfile
+    container_name: form-to-1milion-api2
+    depends_on:
+      - pg
+    ports:
+      - "8081"
     environment:
       - DB_HOST=pg
       - DB_PORT=5432
@@ -114,7 +144,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '5.00'
+          cpus: '10.00'
           memory: 4.5G
 
   #k6:
@@ -134,6 +164,23 @@ services:
   #      limits:
   #        cpus: '1.00'       # allow up to one full CPU core for load test
   #        memory: 1G         # limit memory to 1 gigabyte
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: form-to-1milion-nginx
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - form-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
 
 networks:
   form-net:
