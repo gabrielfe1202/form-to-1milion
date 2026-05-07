@@ -66,7 +66,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Created: time.Now().UTC(),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := h.producer.EnqueueTask(ctx, task); err != nil {
