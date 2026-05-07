@@ -1,3 +1,5 @@
 .env
 .env.test
 */load/reports
+terraform/
+build/
