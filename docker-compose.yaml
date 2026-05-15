@@ -18,6 +18,70 @@ services:
           cpus: '0.60'      
           memory: 512M
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+    networks:
+      - form-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - form-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    networks:
+      - form-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    depends_on:
+      - prometheus
+
   api:
     build:
       context: .
@@ -25,6 +89,7 @@ services:
     container_name: form-to-1milion-api
     depends_on:
       - pg
+      - jaeger
     ports:
       - "8080:8080"
     environment:
@@ -50,6 +115,7 @@ services:
     depends_on:
       - pg
       - rabbitmq
+      - jaeger
     environment:
       - DB_HOST=pg
       - DB_PORT=5432
@@ -82,24 +148,11 @@ services:
           cpus: '0.80'
           memory: 2G
 
-  #k6:
-  #  image: grafana/k6
-  #  container_name: k6-load-test
-  #  volumes:
-  #    - ./scenarios:/scripts
-  #    - ./scenarios/reports:/reports
-  #  working_dir: /scripts
-  #  entrypoint: ["k6", "run", "load-teste.js"]
-  #  depends_on:
-  #    - nginx
-  #  networks:
-  #    - form-net
-  #  deploy:
-  #    resources:
-  #      limits:
-  #        cpus: '1.00'       # allow up to one full CPU core for load test
-  #        memory: 1G         # limit memory to 1 gigabyte
+volumes:
+  prometheus-data:
+  grafana-data:
 
 networks:
   form-net:
     driver: bridge
+
